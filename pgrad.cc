@@ -243,7 +243,6 @@ class Neuron
 public:
 	Neuron(int nin)
 	{
-		std::cout << "reserving weights array of size " << nin << "\n";
 		this->m_weights.reserve(nin);
 		for (size_t i = 0; (int)i < nin; i++)
 		{
@@ -254,22 +253,13 @@ public:
 
 	std::shared_ptr<Value> operator()(std::vector<std::shared_ptr<Value>> &x)
 	{
-		for (auto el : this->m_weights)
-		{
-			std::cout << el->get_data() << ", ";
-		}
-		std::cout << "\n";
 		std::shared_ptr<Value> acc = std::make_shared<Value>(0.0);
 		for (size_t i = 0; i < x.size(); i++)
 		{
-			std::cout << "acc = " << acc->get_data() << " + (" << x[i]->get_data() << " * " << this->m_weights[i]->get_data() << ");\n";
 			acc = acc + (x[i] * this->m_weights[i]);
-			std::cout << "new acc = " << acc->get_data() << ";\n";
 		}
 		acc = acc + this->m_bias;
-		std::cout << "acc :: " << *acc << "\n";
 		auto out = tanh(acc);
-		std::cout << "tanh(acc) :: " << *out << "\n=======================\n";
 		return out;
 	}
 
@@ -371,27 +361,17 @@ public:
 	{
 		std::vector<int> sz;
 		sz.reserve(nout.size() + 1);
+
 		this->m_layers.reserve(nout.size() + 1);
 		sz.emplace_back(nin);
+
 		for (int out : nout)
 		{
 			sz.emplace_back(out);
 		}
 
-		for (auto el : nout)
-		{
-			std::cout << el << ", ";
-		}
-		std::cout << "\n";
-		for (auto el : sz)
-		{
-			std::cout << el << ", ";
-		}
-		std::cout << "\n";
-
 		for (size_t i = 0; i < nout.size(); i++)
 		{
-			std::cout << "intialising (" << i << ", " << i + 1 << ") Layer(" << sz[i] << ", " << sz[i + 1] << ")\n";
 			this->m_layers.emplace_back(Layer(sz[i], sz[i + 1]));
 		}
 	}
@@ -468,10 +448,6 @@ auto main() -> int
 	for (auto el : out)
 	{
 		std::cout << *el << "\n";
-		for (auto pre : el->get_prev())
-		{
-			std::cout << *pre << "\n";
-		}
 	}
 
 	return 0;
