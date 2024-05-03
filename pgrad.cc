@@ -513,7 +513,7 @@ auto main() -> int
 		{
 			for (auto &e : el)
 			{
-				std::cout << std::setprecision(20) << std::fixed;
+				std::cout << std::setprecision(60) << std::fixed;
 				std::cout << e->get_data() << "\n";
 			}
 		}
