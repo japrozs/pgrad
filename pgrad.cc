@@ -2,7 +2,27 @@
 #include <functional>
 #include <random>
 #include <iomanip>
+#include <cassert>
 #include <vector>
+
+#define PRINT_VEC(vec)                           \
+	do                                           \
+	{                                            \
+		if (vec.size() == 1)                     \
+		{                                        \
+			std::cout << *(vec[0]) << std::endl; \
+		}                                        \
+		else                                     \
+		{                                        \
+			for (const auto &elem : vec)         \
+			{                                    \
+				std::cout << *elem << "\n";      \
+			}                                    \
+			std::cout << std::endl;              \
+		}                                        \
+	} while (0)
+#define VECTOR_VAL_TYPE std::vector<std::shared_ptr<Value>>
+#define VAL(x) std::make_shared<Value>(x)
 
 double gen_random_weight()
 {
@@ -99,6 +119,16 @@ public:
 	double get_data()
 	{
 		return m_data;
+	}
+
+	void set_data(double val)
+	{
+		m_data = val;
+	}
+
+	void inc_data(double val)
+	{
+		m_data += val;
 	}
 
 	std::string get_op()
@@ -226,13 +256,12 @@ std::shared_ptr<Value> operator-(std::shared_ptr<Value> lhs, std::shared_ptr<Val
 
 std::shared_ptr<Value> tanh(std::shared_ptr<Value> lhs)
 {
-	// TODO: FINISH WORKING ON THIS
-	auto t = (exp(2 * lhs->get_data()) - 1) / (exp(2 * lhs->get_data()) + 1);
+	auto t = std::tanh(lhs->get_data());
 	auto prev = std::vector<std::shared_ptr<Value>>{lhs};
 	auto out = std::make_shared<Value>(t, prev, "tanh");
-	out->_backward = [out, lhs, t]()
+	out->_backward = [out, lhs]()
 	{
-		lhs->inc_grad(1 - pow(t, 2) * out->get_grad());
+		lhs->inc_grad((1 - pow(out->get_data(), 2)) * out->get_grad());
 	};
 	return out;
 }
@@ -253,13 +282,13 @@ public:
 
 	std::shared_ptr<Value> operator()(std::vector<std::shared_ptr<Value>> &x)
 	{
-		std::shared_ptr<Value> acc = std::make_shared<Value>(0.0);
+		std::shared_ptr<Value> act = std::make_shared<Value>(0.0);
 		for (size_t i = 0; i < x.size(); i++)
 		{
-			acc = acc + (x[i] * this->m_weights[i]);
+			act = act + (x[i] * this->m_weights[i]);
 		}
-		acc = acc + this->m_bias;
-		auto out = tanh(acc);
+		act = act + this->m_bias;
+		auto out = tanh(act);
 		return out;
 	}
 
@@ -338,6 +367,16 @@ public:
 		return params;
 	}
 
+	void print_params()
+	{
+		auto total_params = (this->m_nin + 1) * this->m_nout;
+		std::cout << "Layer parameters: " << total_params << std::endl;
+		for (auto neuron : this->m_neurons)
+		{
+			neuron.print_params();
+		}
+	}
+
 	int get_nin()
 	{
 		return m_nin;
@@ -401,53 +440,83 @@ public:
 		return params;
 	}
 
+	void print_params()
+	{
+		for (int i = 0; i < (int)this->m_layers.size(); i++)
+		{
+			std::cout << "\nLayer " << i + 1 << ": " << std::endl;
+			this->m_layers[i].print_params();
+		}
+	}
+
+	void zero_grad()
+	{
+		for (auto &weight : parameters())
+		{
+			weight->set_grad(0.0);
+		}
+	}
+
 private:
 	int m_total_params;
 	std::vector<Layer> m_layers;
 };
 
+std::shared_ptr<Value> calculate_loss(VECTOR_VAL_TYPE ys, std::vector<VECTOR_VAL_TYPE> ypred)
+{
+	auto acc = std::make_shared<Value>(0.0);
+	assert((ys.size() == ypred.size() && "size of ys and ypred cannot be different"));
+
+	for (int i = 0; i < (int)std::min(ys.size(), ypred.size()); ++i)
+	{
+		acc = acc + (ypred[i][0] - ys[i])->pow(2);
+	}
+	return acc;
+}
+
 auto main() -> int
 {
-	// auto x1 = std::make_shared<Value>(2.0);
-	// x1->set_label("x1");
-	// auto x2 = std::make_shared<Value>(0.0);
-	// x2->set_label("x1");
-	// auto w1 = std::make_shared<Value>(-3.0);
-	// w1->set_label("w1");
-	// auto w2 = std::make_shared<Value>(1.0);
-	// w2->set_label("w2");
 
-	// auto b = std::make_shared<Value>(6.881373587019543);
-	// b->set_label("b");
+	auto xs = std::vector<VECTOR_VAL_TYPE>{
+		VECTOR_VAL_TYPE{VAL(2.0), VAL(3.0), VAL(-1.0)},
+		VECTOR_VAL_TYPE{VAL(3.0), VAL(-1.0), VAL(0.5)},
+		VECTOR_VAL_TYPE{VAL(0.5), VAL(1.0), VAL(1.0)},
+		VECTOR_VAL_TYPE{VAL(1.0), VAL(1.0), VAL(-1.0)}};
 
-	// auto x1w1 = (x1 * w1);
-	// auto x2w2 = (x2 * w2);
-	// auto x1w1x2w2 = x1w1 + x2w2;
-	// auto n = x1w1x2w2 + b;
-	// auto o = tanh(n);
-	// o->backward();
+	auto ys = VECTOR_VAL_TYPE{VAL(1.0), VAL(-1.0), VAL(-1.0), VAL(1.0)};
+	auto mlp = MLP(3, std::vector<int>{4, 4, 1});
+	std::shared_ptr<Value> loss;
 
-	// std::cout << "o :: " << *o << "\n";
-	// std::cout << "n :: " << *n << "\n";
-	// std::cout << "b :: " << *b << "\n";
-	// std::cout << "x1w1x2w2 :: " << *x1w1x2w2 << "\n";
-	// std::cout << "x1w1 :: " << *x1w1 << "\n";
-	// std::cout << "x2w2 :: " << *x2w2 << "\n";
-	// std::cout << "x1 :: " << *x1 << "\n";
-	// std::cout << "w1 :: " << *w1 << "\n";
-	// std::cout << "x2 :: " << *x2 << "\n";
-	// std::cout << "w2 :: " << *w2 << "\n";
-
-	auto x = std::vector<std::shared_ptr<Value>>{
-		std::make_shared<Value>(2.0),
-		std::make_shared<Value>(3.0),
-		std::make_shared<Value>(-1.0)};
-	auto n = MLP(3, std::vector<int>{4, 4, 1});
-	auto out = n(x);
-
-	for (auto el : out)
+	// 100,000 iterations result in a loss of 0.00000285361502291864
+	for (size_t k = 0; k < 10; ++k)
 	{
-		std::cout << *el << "\n";
+		std::vector<VECTOR_VAL_TYPE> ypred;
+		ypred.reserve(xs.size() + 1);
+
+		for (auto x : xs)
+		{
+			ypred.emplace_back(mlp(x));
+		}
+		loss = calculate_loss(ys, ypred);
+		mlp.zero_grad();
+
+		loss->backward();
+
+		for (auto &weight : mlp.parameters())
+		{
+			weight->set_data(weight->get_data() - (0.1 * weight->get_grad()));
+		}
+
+		std::cout << k << ". " << loss->get_data() << "\n";
+
+		for (auto &el : ypred)
+		{
+			for (auto &e : el)
+			{
+				std::cout << std::setprecision(20) << std::fixed;
+				std::cout << e->get_data() << "\n";
+			}
+		}
 	}
 
 	return 0;
